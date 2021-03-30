@@ -16,11 +16,11 @@ using System.Windows.Shapes;
 namespace GhibliPlanner.Views
 {
     /// <summary>
-    /// Interaction logic for CreateEvent.xaml
+    /// Interaction logic for Main.xaml
     /// </summary>
-    public partial class CreateEvent : Page
+    public partial class Main : Page
     {
-        public CreateEvent()
+        public Main()
         {
             InitializeComponent();
         }
