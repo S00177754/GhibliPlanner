@@ -60,6 +60,7 @@
     </ApplicationDefinition>
     <Compile Include="DiscordHelper.cs" />
     <Compile Include="GhibliHelper.cs" />
+    <Compile Include="HttpHelper.cs" />
     <Compile Include="Views\Main.xaml.cs">
       <DependentUpon>Main.xaml</DependentUpon>
     </Compile>

@@ -23,12 +23,12 @@ namespace GhibliPlanner
     /// </summary>
     public partial class MainWindow : Window
     {
-        static MainWindow Instance;
+        static public MainWindow Instance;
 
-        static GhibliHelper helper = new GhibliHelper();
+        GhibliHelper helper = new GhibliHelper();
 
-        static Thread Thrd_FilmAPI_Sync = new Thread(new ThreadStart(UpdateFilmList));
-        static Thread Thrd_FilmAPI_Info = new Thread(new ParameterizedThreadStart(RetrieveFilm));
+        Thread Thrd_FilmAPI_Sync = CreateFilmSyncThread();
+        Thread Thrd_FilmAPI_Info = CreateFilmInfoThread();
         //static Thread Thrd_EventNotifier = new Thread(new ThreadStart);
         //static Thread Thrd_EventSaving = new Thread(new ThreadStart());
         //static Thread Thrd_NoteSaving = new Thread(new ThreadStart());
@@ -37,31 +37,36 @@ namespace GhibliPlanner
         {
             Instance = this;
             InitializeComponent();
-            ThreadInitializer();
             Thrd_FilmAPI_Sync.Start();
         }
 
-        void ThreadInitializer()
+        static Thread CreateFilmSyncThread()
         {
-            Thrd_FilmAPI_Sync.Name = "Film API Sync";
-            Thrd_FilmAPI_Sync.Priority = ThreadPriority.BelowNormal;
-
-            Thrd_FilmAPI_Info.Name = "Film API Info";
-            Thrd_FilmAPI_Info.Priority = ThreadPriority.AboveNormal;
-            
+            Thread thrd = new Thread(new ThreadStart(UpdateFilmList));
+            thrd.Name = "Film API Sync";
+            thrd.Priority = ThreadPriority.BelowNormal;
+            return thrd;
         }
 
-        static public void UpdateFilmList()
+        static Thread CreateFilmInfoThread()
         {
-            List<FilmResponse> films = helper.GetFilms();
+            Thread thrd = new Thread(new ParameterizedThreadStart(RetrieveFilm));
+            thrd.Name = "Film API Info";
+            thrd.Priority = ThreadPriority.AboveNormal;
+            return thrd;
+        }
+
+        static void UpdateFilmList()
+        {
+            List<FilmResponse> films = Instance.helper.GetFilms();
             Instance.LstBxGhibliMovies.Dispatcher.Invoke(() => { Instance.LstBxGhibliMovies.ItemsSource = films; });
             
         }
 
-        static public void RetrieveFilm(object film)
+        static void RetrieveFilm(object film)
         {
             string filmName = (string)film;
-            FilmResponse response = helper.GetFilms().Where(f => f.title == filmName).FirstOrDefault();
+            FilmResponse response = Instance.helper.GetFilms().Where(f => f.title == filmName).FirstOrDefault();
 
             Instance.TxtBlkMovieInfo.Dispatcher.Invoke(() => { Instance.TxtBlkMovieInfo.Text = response.MovieInfo(); });
         }
@@ -71,13 +76,25 @@ namespace GhibliPlanner
 
         private void LstBxGhibliMovies_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            string filmName = LstBxGhibliMovies.SelectedItem.ToString();
-            Thrd_FilmAPI_Info.Start(filmName);
+            var selected = LstBxGhibliMovies.SelectedItem;
+            if (selected != null)
+            {
+                string filmName = selected.ToString();
+                Thrd_FilmAPI_Info = CreateFilmInfoThread();
+                Thrd_FilmAPI_Info.Start(filmName);
+            }
         }
 
         private void BtnRefreshList_Click(object sender, RoutedEventArgs e)
         {
-            TxtBlkThreadInfo.Text = Thrd_FilmAPI_Sync.ThreadState.ToString();
+            Thrd_FilmAPI_Sync = CreateFilmSyncThread();
+            Thrd_FilmAPI_Sync.Start();
+            LstBxGhibliMovies.SelectedIndex = 0;
+        }
+
+        private void BtnCreateEvent_Click(object sender, RoutedEventArgs e)
+        {
+            DiscordHelper.SendToWebHook(".");
         }
     }
 }

@@ -44,7 +44,7 @@
                         
                         <TextBlock Text="Details:" Grid.Row="0"/>
                         <TextBlock Name="TxtBlkMovieInfo" Grid.Row="1" Background="White" TextWrapping="Wrap" />
-                        <Button Name="BtnCreateEvent" Grid.Row="2" Content="Create Event" Margin="3" Width="100" HorizontalAlignment="Right"/>
+                        <Button Name="BtnCreateEvent" Grid.Row="2" Content="Create Event" Margin="3" Width="100" HorizontalAlignment="Right" Click="BtnCreateEvent_Click"/>
 
                     </Grid>
 

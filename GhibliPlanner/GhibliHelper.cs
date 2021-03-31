@@ -8,65 +8,57 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GhibliPlanner
 {
     public class GhibliHelper
     {
-        static HttpClient client = new HttpClient();
+        WebClient client = new WebClient();
 
         static public string BaseURL = @"https://ghibliapi.herokuapp.com/";
         static public string FilmEndpoint = @"films";
 
-        static string CreateURL(string movieName)
+        static string CreateURL()
         {
-            return string.Concat(BaseURL,FilmEndpoint,movieName);
+            return string.Concat(BaseURL,FilmEndpoint);
         }
 
         public FilmResponse GetFilm(string filmName)
         {
-            client = new HttpClient();
-            client.BaseAddress = new Uri(CreateURL("?title"));
-
-            client.DefaultRequestHeaders.Accept.Add(
-            new MediaTypeWithQualityHeaderValue("application/json"));
-
-            HttpResponseMessage response = client.GetAsync(string.Concat("=",filmName)).Result;
-
-            if (response.IsSuccessStatusCode)
+            client = new WebClient();
+            client.Headers.Add(HttpRequestHeader.ContentType, "application/json");
+                    
+            string response = client.DownloadString(string.Concat(CreateURL()));
+            if (!string.IsNullOrEmpty(response))
             {
-                var json = response.Content.ReadAsStringAsync();
-                json.Wait();
-                Debug.WriteLine(json);
-                FilmResponse flm = JsonConvert.DeserializeObject<List<FilmResponse>>(json.Result)[0];
-                client.Dispose();
+                FilmResponse flm = JsonConvert.DeserializeObject<List<FilmResponse>>(response)[0];
+
+                //MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">", Thread.CurrentThread.Name, " has successfully gotten film info.");
                 return flm;
             }
 
+            //MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">", Thread.CurrentThread.Name, " is unable to access GetFilms() because its busy.");
             return null;
+
         }
 
         public List<FilmResponse> GetFilms()
         {
-            client = new HttpClient();
-            client.BaseAddress = new Uri(CreateURL(""));
+            client = new WebClient();
+            client.Headers.Add(HttpRequestHeader.ContentType, "application/json");
 
-            client.DefaultRequestHeaders.Accept.Add(
-            new MediaTypeWithQualityHeaderValue("application/json"));
-
-            HttpResponseMessage response = client.GetAsync("").Result;
-
-            if (response.IsSuccessStatusCode)
+            string response = client.DownloadString(string.Concat(CreateURL()));
+            if (!string.IsNullOrEmpty(response))
             {
-                var json = response.Content.ReadAsStringAsync();
-                json.Wait();
+                List<FilmResponse> lst = JsonConvert.DeserializeObject<List<FilmResponse>>(response);
 
-                List<FilmResponse> lst = JsonConvert.DeserializeObject<List<FilmResponse>>(json.Result);
-                client.Dispose();
+                //MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">", Thread.CurrentThread.Name, " has successfully gotten film info.");
                 return lst;
             }
 
+            //MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">",Thread.CurrentThread.Name," is unable to access GetFilms() because its busy.");
             return null;
         }
     }
