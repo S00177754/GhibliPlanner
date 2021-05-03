@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -23,78 +24,67 @@ namespace GhibliPlanner
     /// </summary>
     public partial class MainWindow : Window
     {
-        static public MainWindow Instance;
+        public static MainWindow Instance;
+        public Ghibli Core = new Ghibli();
 
-        GhibliHelper helper = new GhibliHelper();
+        CancellationTokenSource RetrieveFilmCancel;
 
-        Thread Thrd_FilmAPI_Sync = CreateFilmSyncThread();
-        Thread Thrd_FilmAPI_Info = CreateFilmInfoThread();
-        //static Thread Thrd_EventNotifier = new Thread(new ThreadStart);
-        //static Thread Thrd_EventSaving = new Thread(new ThreadStart());
-        //static Thread Thrd_NoteSaving = new Thread(new ThreadStart());
 
         public MainWindow()
         {
-            Instance = this;
             InitializeComponent();
-            Thrd_FilmAPI_Sync.Start();
+            Instance = this;
+
+            Core.RetrieveFilms(ref RetrieveFilmCancel);
         }
 
-        static Thread CreateFilmSyncThread()
+        private void Setup()
         {
-            Thread thrd = new Thread(new ThreadStart(UpdateFilmList));
-            thrd.Name = "Film API Sync";
-            thrd.Priority = ThreadPriority.BelowNormal;
-            return thrd;
-        }
-
-        static Thread CreateFilmInfoThread()
-        {
-            Thread thrd = new Thread(new ParameterizedThreadStart(RetrieveFilm));
-            thrd.Name = "Film API Info";
-            thrd.Priority = ThreadPriority.AboveNormal;
-            return thrd;
-        }
-
-        static void UpdateFilmList()
-        {
-            List<FilmResponse> films = Instance.helper.GetFilms();
-            Instance.LstBxGhibliMovies.Dispatcher.Invoke(() => { Instance.LstBxGhibliMovies.ItemsSource = films; });
             
         }
 
-        static void RetrieveFilm(object film)
-        {
-            string filmName = (string)film;
-            FilmResponse response = Instance.helper.GetFilms().Where(f => f.title == filmName).FirstOrDefault();
-
-            Instance.TxtBlkMovieInfo.Dispatcher.Invoke(() => { Instance.TxtBlkMovieInfo.Text = response.MovieInfo(); });
-        }
-
-
-
-
         private void LstBxGhibliMovies_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var selected = LstBxGhibliMovies.SelectedItem;
-            if (selected != null)
+            if (!Core.IsGetMovieActive())
             {
-                string filmName = selected.ToString();
-                Thrd_FilmAPI_Info = CreateFilmInfoThread();
-                Thrd_FilmAPI_Info.Start(filmName);
+                Core.GetFilm(LstBxGhibliMovies.SelectedItem.ToString());
             }
         }
 
         private void BtnRefreshList_Click(object sender, RoutedEventArgs e)
         {
-            Thrd_FilmAPI_Sync = CreateFilmSyncThread();
-            Thrd_FilmAPI_Sync.Start();
-            LstBxGhibliMovies.SelectedIndex = 0;
+            Core.RetrieveFilms(ref RetrieveFilmCancel);
         }
 
         private void BtnCreateEvent_Click(object sender, RoutedEventArgs e)
         {
-            DiscordHelper.SendToWebHook(".");
+            if(DtPck.SelectedDate != null 
+                && Core.RetrievedMovie != null 
+                && !Core.EventRecords.Contains(new EventRecord(Core.RetrievedMovie.title, DtPck.SelectedDate.Value)))
+            {
+                EventRecord eventRecord = new EventRecord(Core.RetrievedMovie.title, DtPck.SelectedDate.Value);
+                Core.EventRecords.Add(eventRecord);
+                LstBxEvents.Items.Refresh();
+            }
+        }
+
+        private void BtnCancelProgOperation_Click(object sender, RoutedEventArgs e)
+        {
+            RetrieveFilmCancel.Cancel();
+        }
+
+        private void TabItem_GotFocus(object sender, RoutedEventArgs e)
+        {
+            LstBxEvents.ItemsSource = Core.EventRecords;
+        }
+
+        private void RemoveButton_Click(object sender, RoutedEventArgs e)
+        {
+            Button button = sender as Button;
+            Core.EventRecords.Remove(button.DataContext as EventRecord);
+            LstBxEvents.Items.Refresh();
         }
     }
+
+    
 }

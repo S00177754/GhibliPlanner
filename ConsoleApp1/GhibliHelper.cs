@@ -17,7 +17,7 @@ namespace GhibliPlanner
     {
         static WebClient client = new WebClient();
 
-        static public string BaseURL = @"https://ghibliapi.herokuapp.com/";
+        static public string BaseURL = @"https://ghibliapi.herokuapp.com/"; 
         static public string FilmEndpoint = @"films";
 
         static string CreateURL()

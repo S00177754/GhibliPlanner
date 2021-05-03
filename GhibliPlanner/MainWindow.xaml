@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:GhibliPlanner"
         mc:Ignorable="d"
-        Title="Ghibli Planner" Height="450" Width="800">
+        Title="Ghibli Planner" Height="450" Width="820">
     <Grid Background="#FFC7C7C7">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="54*"/>
@@ -43,8 +43,14 @@
                         </Grid.RowDefinitions>
                         
                         <TextBlock Text="Details:" Grid.Row="0"/>
-                        <TextBlock Name="TxtBlkMovieInfo" Grid.Row="1" Background="White" TextWrapping="Wrap" />
-                        <Button Name="BtnCreateEvent" Grid.Row="2" Content="Create Event" Margin="3" Width="100" HorizontalAlignment="Right" Click="BtnCreateEvent_Click"/>
+                        <TextBlock Name="TxtBlkMovieInfo" Grid.Row="1" Margin="5" Background="White" TextWrapping="Wrap" />
+
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="Date: " VerticalAlignment="Center" FontSize="13"/>
+                            <DatePicker Name="DtPck" Margin="0,0,10,0" Width="150" />
+
+                            <Button Name="BtnCreateEvent"  Content="Create Event" Margin="0,0,4,0" Width="100" HorizontalAlignment="Right" Click="BtnCreateEvent_Click"/>
+                        </StackPanel>
 
                     </Grid>
 
@@ -58,11 +64,46 @@
 
             </TabItem>
 
-            <TabItem Header="Scheduled Events">
-                <Grid Background="#FFE5E5E5"/>
+            <TabItem Header="Scheduled Events" GotFocus="TabItem_GotFocus" >
+                <Grid Margin="1" Background="LightGray">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="285*"/>
+                        <RowDefinition Height="100*"/>
+                        <RowDefinition Height="40*"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="199*"/>
+                        <ColumnDefinition Width="589*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ListBox Name="LstBxEvents" Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" Margin="5" HorizontalContentAlignment="Stretch">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid HorizontalAlignment="Stretch">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="5"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="30"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="1" Text="{Binding MovieTitle}" HorizontalAlignment="Left" TextAlignment="Left" />
+                                    <Button Grid.Column="2" Content="X" Width="25" Click="RemoveButton_Click" Background="Red" Foreground="White"  />
+
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    
+                    
+                    <StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="2" Margin="2" HorizontalAlignment="Center">
+                        <Button Name="BtnSave" Content="Save Events" Width="90" Margin="2,2,4,2" />
+                        <Button Name="BtnLoad" Content="Load Events" Width="90" Margin="4,2,2,2" />
+                    </StackPanel>
+                    
+                </Grid>
             </TabItem>
 
-            <TabItem Header="Settings">
+            <TabItem Header="Discord Records">
                 <Grid Background="#FFE5E5E5"/>
             </TabItem>
 
@@ -75,9 +116,11 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="200" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12*" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="200" />
+                            <ColumnDefinition Width="*" MinWidth="80" />
+                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="30" />
                         </Grid.ColumnDefinitions>
                     </Grid>
                 </ItemsPanelTemplate>
@@ -86,7 +129,6 @@
             <StatusBarItem HorizontalAlignment="Center">
                 <StackPanel Orientation="Horizontal" >
                     <TextBlock Name="TxtBlkGhibliStatus" Text="Ghibli API Status: Connected" />
-                    <Button Name="BtnCheckGhibliStatus" Content="R" Width="20" Margin="10,0,0,0"/>
                 </StackPanel>
             </StatusBarItem>
 
@@ -98,12 +140,16 @@
 
             <Separator Grid.Column="3" />
 
-            <StatusBarItem Grid.Column="4" HorizontalAlignment="Right">
-                <StackPanel Orientation="Horizontal" >
-                    <TextBlock Name="TxtBlkProgressMsg" Text="Sending:" Margin="0,0,10,0"/>
-                    <ProgressBar Name="PrgBrStatusBar" Value="0" Width="110" Height="16" Margin="0,0,10,0" />
-                    <Button Name="BtnCancelProgOperation" Content="X" Width="20"/>
-                </StackPanel>
+            <StatusBarItem Grid.Column="4" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Name="TxtBlkProgressMsg" Text="Downloading::" />
+            </StatusBarItem>
+
+            <StatusBarItem Grid.Column="5" VerticalAlignment="Center" >
+                <ProgressBar Name="PrgBrStatusBar" Width="90" Height="16"  Minimum="0" Maximum="1" Value="1" />
+            </StatusBarItem>
+
+            <StatusBarItem Grid.Column="6" HorizontalAlignment="Left">
+                <Button Name="BtnCancelProgOperation" Content="X" Width="20" Click="BtnCancelProgOperation_Click" HorizontalAlignment="Right"/>
             </StatusBarItem>
 
         </StatusBar>
