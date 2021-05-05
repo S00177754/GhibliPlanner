@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -63,6 +64,24 @@ namespace GhibliPlanner
 
             //MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">",Thread.CurrentThread.Name," is unable to access GetFilms() because its busy.");
             return response;
+        }
+
+        public static void SendToWebHook(string URL, string msg, string username)
+        {
+            HttpHelper.Post(URL, new NameValueCollection()
+            {
+                {"username",username },
+                {"content",msg }
+            });
+        }
+    }
+
+    class HttpHelper
+    {
+        public static byte[] Post(string uri, NameValueCollection pairs)
+        {
+            using (WebClient webClient = new WebClient())
+                return webClient.UploadValues(uri, pairs);
         }
     }
 

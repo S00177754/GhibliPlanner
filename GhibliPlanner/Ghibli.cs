@@ -15,12 +15,18 @@ namespace GhibliPlanner
     [Serializable]
     public class Ghibli //join on final thread to occur
     {
-        public const string FileName = "records.txt";
         IsolatedStorageFile isoFile;
+        public const string discordFileName = "records.txt";
+        public const string eventsFileName = "events.txt";
+        public const string userDataDir = "UserData";
 
         Thread SetMoviesThread;
         Thread GetMoviesThread;
-        Thread PersistanceThread;
+
+        Thread DiscordSaveThread;
+        Thread DiscordLoadThread;
+        Thread EventSaveThread;
+        Thread EventLoadThread;
 
         public List<MovieFile> Movies = new List<MovieFile>();
         public List<DiscordRecord> DiscordRecords = new List<DiscordRecord>();
@@ -30,7 +36,26 @@ namespace GhibliPlanner
 
         public Ghibli()
         {
-            isoFile = IsolatedStorageFile.GetUserStoreForDomain();
+            //isoFile = IsolatedStorageFile.GetStore(IsolatedStorageScope.User,typeof(System.Security.Policy.Url),typeof(System.Security.Policy.Url));
+            isoFile = IsolatedStorageFile.GetUserStoreForAssembly();
+
+            if(!isoFile.DirectoryExists(userDataDir))
+            {
+                isoFile.CreateDirectory(userDataDir);
+            }
+
+            if (!isoFile.FileExists(Path.Combine(userDataDir,discordFileName)))
+            {
+                isoFile.CreateFile(Path.Combine(userDataDir, discordFileName));
+            }
+
+            if (!isoFile.FileExists(Path.Combine(userDataDir, eventsFileName)))
+            {
+                isoFile.CreateFile(Path.Combine(userDataDir, eventsFileName));
+            }
+
+            //LoadDiscord();
+            //LoadEvent();
         }
 
         #region Discord Records
@@ -134,7 +159,7 @@ namespace GhibliPlanner
             }
             catch (ThreadInterruptedException)
             {
-                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(Thread.CurrentThread.Name," - Set Movies has been interrupted."));
+                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ",Thread.CurrentThread.Name," - Set Movies has been interrupted."));
             }
         }
 
@@ -181,47 +206,171 @@ namespace GhibliPlanner
             GetMoviesThread.Start(movieName);
         }
 
+        public void CreateSaveDiscordThread()
+        {
+            Thread thread = new Thread(new ThreadStart(SaveDiscord));
+            thread.Name = "Save Discord Thread";
+            thread.Priority = ThreadPriority.Highest;
+
+            if (DiscordSaveThread != null)
+                DiscordSaveThread.Abort();
+
+            DiscordSaveThread = null;
+            DiscordSaveThread = thread;
+            DiscordSaveThread.Start();
+        }
+
+        public void CreateLoadDiscordThread()
+        {
+            Thread thread = new Thread(new ThreadStart(LoadDiscord));
+            thread.Name = "Load Discord Thread";
+            thread.Priority = ThreadPriority.AboveNormal;
+
+            if (DiscordLoadThread != null)
+                DiscordLoadThread.Abort();
+
+            DiscordLoadThread = null;
+            DiscordLoadThread = thread;
+            DiscordLoadThread.Start();
+        }
+
+        public void CreateSaveEventThread()
+        {
+            Thread thread = new Thread(new ThreadStart(SaveEvent));
+            thread.Name = "Save Event Thread";
+            thread.Priority = ThreadPriority.Highest;
+
+            if (EventSaveThread != null)
+                EventSaveThread.Abort();
+
+            EventSaveThread = null;
+            EventSaveThread = thread;
+            EventSaveThread.Start();
+        }
+
+        public void CreateLoadEventThread()
+        {
+            Thread thread = new Thread(new ThreadStart(LoadEvent));
+            thread.Name = "Load Event Thread";
+            thread.Priority = ThreadPriority.AboveNormal;
+
+            if (EventLoadThread != null)
+                EventLoadThread.Abort();
+
+            EventLoadThread = null;
+            EventLoadThread = thread;
+            EventLoadThread.Start();
+        }
+
         #endregion
 
         #region Record Persistance
 
-        public void Save()
+        public void SaveDiscord()
         {
             try
             {
-                using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(FileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
+                using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, discordFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
                 {
                     BinaryFormatter formatter = new BinaryFormatter();
                     if (Monitor.TryEnter(DiscordRecords))
                     {
                         formatter.Serialize(isoStream,DiscordRecords);
+                        Monitor.Exit(DiscordRecords);
                     }
+
+                    isoStream.Close();
                 }
+
+                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ",Thread.CurrentThread.Name, " - Save Discord has retrieved records."));
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Exception Occured", ex.Message);
+                MessageBox.Show(ex.Message,"Exception Occured");
+                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", Thread.CurrentThread.Name, " - Save Discord has been interrupted."));
             }
         }
 
-        public void Load()
+        public void LoadDiscord()
         {
             try
             {
-                using(IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(FileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
+                if(DiscordSaveThread != null)
+                    if (DiscordSaveThread.IsAlive)
+                    { DiscordSaveThread.Join(); }
+
+                using(IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, discordFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
                 {
                     BinaryFormatter formatter = new BinaryFormatter();
                     if (Monitor.TryEnter(DiscordRecords))
                     {
-                        DiscordRecords = (List<DiscordRecord>)formatter.Deserialize(isoStream);
+                        DiscordRecords.Clear();
+                        DiscordRecords.AddRange( (List<DiscordRecord>)formatter.Deserialize(isoStream) );
+                        Monitor.Exit(DiscordRecords);
                     }
+
+                    //isoStream.Close();
                 }
+
+                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ",Thread.CurrentThread.Name, " - Load Discord has retrieved records."));
             }
             catch(Exception ex)
             {
-                MessageBox.Show("Exception Occured", ex.Message);
+                MessageBox.Show(ex.Message,"Exception Occured");
+                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", Thread.CurrentThread.Name, " - Load Discord has been interrupted."));
             }
         }
+
+
+        public void SaveEvent()
+        {
+            try
+            {
+                using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, eventsFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
+                {
+                    BinaryFormatter formatter = new BinaryFormatter();
+                    if (Monitor.TryEnter(EventRecords))
+                    {
+                        formatter.Serialize(isoStream, EventRecords);
+                        Monitor.Exit(EventRecords);
+                    }
+
+                    isoStream.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message,"Exception Occured");
+            }
+        }
+
+        public void LoadEvent()
+        {
+            try
+            {
+                if (EventSaveThread != null)
+                    if (EventSaveThread.IsAlive)
+                        EventSaveThread.Join();
+
+                using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, eventsFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
+                {
+                    BinaryFormatter formatter = new BinaryFormatter();
+                    if (Monitor.TryEnter(EventRecords))
+                    {
+                        EventRecords.Clear();
+                        EventRecords.AddRange( (List<EventRecord>)formatter.Deserialize(isoStream) );
+                        Monitor.Exit(EventRecords);
+                    }
+
+                    //isoStream.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message,"Exception Occured");
+            }
+        }
+
 
         #endregion
 
@@ -292,6 +441,13 @@ namespace GhibliPlanner
             ServerName = serverName;
             WebhookURL = webhookURL;
         }
+
+        public override string ToString()
+        {
+            return ServerName;
+        }
+
+        public string DiscordInfo { get { return ServerName; } }
     }
 
     /// <summary>
@@ -310,6 +466,8 @@ namespace GhibliPlanner
             MovieTitle = movieTitle;
             Date = date;
         }
+
+        public string MovieInfo { get { return string.Concat(MovieTitle, " - ", Date.Date.ToShortDateString()); } }
     }
 
     /// <summary>
