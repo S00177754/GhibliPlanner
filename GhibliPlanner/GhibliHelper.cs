@@ -21,40 +21,36 @@ namespace GhibliPlanner
         static public string BaseURL = @"https://ghibliapi.herokuapp.com/";
         static public string FilmEndpoint = @"films";
 
+        /// <summary>
+        /// Creates endpoint URL path for downloading of films data
+        /// </summary>
+        /// <returns></returns>
         static string CreateURL()
         {
             return string.Concat(BaseURL,FilmEndpoint);
         }
 
-        public static MovieFile GetFilm(string filmName)
-        {
-            client = new WebClient();
-            client.Headers.Add(HttpRequestHeader.ContentType, "application/json");
-                    
-            string response = client.DownloadString(string.Concat(CreateURL()));
-
-            if (!string.IsNullOrEmpty(response))
-            {
-                MovieFile flm = JsonConvert.DeserializeObject<List<MovieFile>>(response)[0];
-
-                return flm;
-            }
-
-            
-            return null;
-
-        }
-
+        /// <summary>
+        /// Retrieves films json data from API using WebClient
+        /// </summary>
+        /// <returns></returns>
         public static string GetFilms()
         {
             client = new WebClient();
             client.Headers.Add(HttpRequestHeader.ContentType, "application/json");
 
+            //retrieve json data from endpoint
             string response = client.DownloadString(string.Concat(CreateURL()));
             
             return response;
         }
 
+        /// <summary>
+        /// Sends post request to passed in URL endpoint along with message and username
+        /// </summary>
+        /// <param name="URL"></param>
+        /// <param name="msg"></param>
+        /// <param name="username"></param>
         public static void SendToWebHook(string URL, string msg, string username)
         {
             HttpHelper.Post(URL, new NameValueCollection()

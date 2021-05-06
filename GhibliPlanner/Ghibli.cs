@@ -13,32 +13,39 @@ using System.Windows;
 namespace GhibliPlanner
 {
     [Serializable]
-    public class Ghibli //join on final thread to occur
+    public class Ghibli
     {
-        IsolatedStorageFile isoFile;
+        //Isolated Storage Path Constants
         public const string discordFileName = "records.txt";
         public const string eventsFileName = "events.txt";
         public const string userDataDir = "UserData";
 
+        IsolatedStorageFile isoFile;
+
+        //Application Threads
         Thread SetMoviesThread;
         Thread GetMoviesThread;
 
         Thread DiscordSaveThread;
         Thread DiscordLoadThread;
+
         Thread EventSaveThread;
         Thread EventLoadThread;
 
+        //Runtime Lists/Objects of Application data
         public List<MovieFile> Movies = new List<MovieFile>();
         public List<DiscordRecord> DiscordRecords = new List<DiscordRecord>();
         public List<EventRecord> EventRecords = new List<EventRecord>();
 
         public MovieFile RetrievedMovie = new MovieFile();
 
+        //CTOR
         public Ghibli()
         {
-
+            //Get user isolated storage file from assembly
             isoFile = IsolatedStorageFile.GetUserStoreForAssembly();
 
+            //Creation of directory and files if they do not previously exist
             if(!isoFile.DirectoryExists(userDataDir))
             {
                 isoFile.CreateDirectory(userDataDir);
@@ -56,6 +63,7 @@ namespace GhibliPlanner
 
         }
 
+
         #region Discord Records
 
         /// <summary>
@@ -64,31 +72,75 @@ namespace GhibliPlanner
         /// <param name="record">Server Name and Webhook URL.</param>
         public void AddRecord(DiscordRecord record)
         {
-            if (Monitor.TryEnter(DiscordRecords))
+            //Enter discord record list runtime object
+            if (Monitor.TryEnter(DiscordRecords,3000))
             {
+                //Add the record
                 DiscordRecords.Add(record);
                 Monitor.Exit(DiscordRecords);
-                Monitor.PulseAll(DiscordRecords);
             }
         }
 
+        /// <summary>
+        /// Allows the addition of an event record.
+        /// </summary>
+        /// <param name="record"></param>
+        public void AddRecord(EventRecord record)
+        {
+            //Enter event record list runtime object
+            if (Monitor.TryEnter(EventRecords, 3000))
+            {
+                //Add the record
+                EventRecords.Add(record);
+                Monitor.Exit(EventRecords);
+            }
+        }
+
+        /// <summary>
+        /// Allows the removal of a discord event
+        /// </summary>
+        /// <param name="serverName"></param>
         public void RemoveRecord(string serverName)
         {
-            if (Monitor.TryEnter(DiscordRecords))
+            //Enter discord record list runtime object
+            if (Monitor.TryEnter(DiscordRecords,3000))
             {
+                //Finds the specified discord record where the server name matches
                 DiscordRecord record = DiscordRecords.Where(d => d.ServerName == serverName).SingleOrDefault();
+
+                //Removal of record 
                 DiscordRecords.Remove(record);
                 Monitor.Exit(DiscordRecords);
-                Monitor.Pulse(DiscordRecords);
+            }
+        }
+
+        /// <summary>
+        /// Allows the remocal of an Event Record
+        /// </summary>
+        /// <param name="record"></param>
+        public void RemoveRecord(EventRecord record)
+        {
+            //Enter event record list runtime object
+            if (Monitor.TryEnter(EventRecords, 3000))
+            {
+                //Finds the specified event record where the movie name and date matches
+                EventRecord rcrd = EventRecords.Where(d => d.MovieTitle == record.MovieTitle && d.Date.ToShortDateString() == record.Date.ToShortDateString()).SingleOrDefault();
+                EventRecords.Remove(rcrd);
+                Monitor.Exit(EventRecords);
             }
         }
 
         #endregion
 
+
         #region Movie Files
 
+        /// <summary>
+        /// Retrieves the movie object for the specified title
+        /// </summary>
         public void GetMovie(object movieName)
         {
+            //Checks the thread state to see if Set Movies is running and if so, it joins the current thread to it to ensure this runs after
             if (SetMoviesThread.ThreadState == ThreadState.Running)
                 SetMoviesThread.Join();
 
@@ -98,59 +150,88 @@ namespace GhibliPlanner
 
                 if (Monitor.TryEnter(Movies, 3000))
                 {
+                    //Gets the movie matching the passed in title
                     RetrievedMovie = Movies.Where(m => m.title == (string)movieName).SingleOrDefault();
+
+                    //Uses the dispatcher to update the UI with movie info
                     MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkMovieInfo.Text = RetrievedMovie.MovieInfo());
-                    MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(Thread.CurrentThread.Name, " - Movie Info Retrieved and displayed."));
+
+                    //Display of thread status on main UI
+                    string thrdName = Thread.CurrentThread.Name;
+                    MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">", thrdName, " - Movie Info Retrieved and displayed."));
                     Monitor.Exit(Movies);
                 }
             }
             catch (ThreadInterruptedException)
             {
-                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(Thread.CurrentThread.Name, " - Get Movie has been interrupted."));
+                string thrdName = Thread.CurrentThread.Name;
+                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">",thrdName, " - Get Movie has been interrupted."));
             }
 
         }
 
+        /// <summary>
+        /// Retrieves the movie list from the Ghibli REST API.
+        /// </summary>
+        /// <param name="req">Set Movie Request object</param>
         public void SetMovies(object req)
         {
             try
             {
+                //Cast set movie request as class
                 SetMovieRequest data = (SetMovieRequest)req;
 
+                //Gain lock on movies, try for 3 seconds if unsuccessful
                 if (Monitor.TryEnter(Movies,3000))
                 {
                     List<MovieFile> movieList;
 
+                    //If there are movies in the list, check if any other thread requires the Movies list object.
                     if (Movies.Count > 0 )
                     {
                         Monitor.Pulse(Movies);
-                        Monitor.Wait(Movies,100);
+                        Monitor.Wait(Movies,100); //Releases thread to object queue after 100ms
                     }
 
+                    //Clears the movie list
                     Movies.Clear();
+
+                    //Converts the json data into a movie list
                     movieList = Utility.ConvertFromJson(data.JsonData);
+
+                    //Updates the Status bar progress text for this operation
                     MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkProgressMsg.Text = "Downloading:");
 
+                    //Adding of movies to runtime core list
                     for (int i = 0; i < movieList.Count; i++)
                     {
+                        //Adding items to list rather than setting entire list as it releases the lock on the object
                         Movies.Add(movieList[i]);
                         
+                        //Calculation of the download progress or in this case the adding of movies to the list as the movies were all downloaded together
                         double percent = (((double)i + 1) / (double)movieList.Count);
                         MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.PrgBrStatusBar.Value = percent);
+
+                        //Here we are blocking the thread every 300ms to give the user an oppurtunity to cancel the operation
                         Thread.Sleep(300);
 
+                        //Checking if the cancellation token has had cancellation requested
                         if (data.Token.IsCancellationRequested)
                         {
-                            MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ",Thread.CurrentThread.Name," Set Movie Thread has been cancelled."));
+                            string thdName = Thread.CurrentThread.Name;
+                            MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ",thdName," Set Movie Thread has been cancelled."));
+
+                            //Exit lock on Movies list object before exiting the thread
                             Monitor.Exit(Movies);
                             return;
                         }
                     }
 
-                    string threadName = Thread.CurrentThread.Name;
-
+                    //Setting of list to the WPF List box
                     MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.LstBxGhibliMovies.ItemsSource = Movies);
-                    MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", threadName, " has retrieved updated list."));
+
+                    string thrdName = Thread.CurrentThread.Name;
+                    MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", thrdName, " has retrieved updated list."));
 
                     Monitor.Exit(Movies);
                 }
@@ -163,16 +244,24 @@ namespace GhibliPlanner
 
         #endregion
 
+
         #region Thread Creation
 
+        /// <summary>
+        /// Creates and starts the retrieve films thread and sets the cancellation token source object.
+        /// </summary>
+        /// <param name="tokenSource"></param>
         public void RetrieveFilms(ref CancellationTokenSource tokenSource)
         {
+            //Creation of thread and setting of thread variables
             Thread thread = new Thread(new ParameterizedThreadStart(SetMovies));
             thread.Name = "Create Retrieval Thread";
             thread.Priority = ThreadPriority.Highest;
 
+            //Check if thread is null or if an instance is already created
             if (SetMoviesThread != null)
             {
+                //Cancellation of previous token then thread
                 if (tokenSource != null && !tokenSource.IsCancellationRequested)
                 {
                     tokenSource.Cancel();
@@ -183,19 +272,26 @@ namespace GhibliPlanner
                 }
             }
 
+            //Setting of new thread and starting of new thread
             SetMoviesThread = null;
             SetMoviesThread = thread;
             tokenSource = new CancellationTokenSource();
             SetMoviesThread.Start(new SetMovieRequest(GhibliHelper.GetFilms(),tokenSource.Token));
         }
 
+        /// <summary>
+        /// Creates and starts the get film thread.
+        /// </summary>
+        /// <param name="movieName"></param>
         public void CreateGetFilm(string movieName)
         {
+            //Creation of thread and setting of thread variables
             Thread thread = new Thread(new ParameterizedThreadStart(GetMovie));
             thread.Name = "Get Movie Thread";
             thread.Priority = ThreadPriority.AboveNormal;
             thread.IsBackground = true;
 
+            //Aborting thread if one already exists
             if (GetMoviesThread != null)
                 GetMoviesThread.Abort();
 
@@ -204,12 +300,17 @@ namespace GhibliPlanner
             GetMoviesThread.Start(movieName);
         }
 
+        /// <summary>
+        /// Creation of Discord saving thread and starts it.
+        /// </summary>
         public void CreateSaveDiscordThread()
         {
+            //Creation of thread and setting of thread variables
             Thread thread = new Thread(new ThreadStart(SaveDiscord));
             thread.Name = "Save Discord Thread";
             thread.Priority = ThreadPriority.Highest;
 
+            //Aborting thread if one already exists
             if (DiscordSaveThread != null)
                 DiscordSaveThread.Abort();
 
@@ -218,12 +319,17 @@ namespace GhibliPlanner
             DiscordSaveThread.Start();
         }
 
+        /// <summary>
+        /// Creation of Discord loading thread and starts it.
+        /// </summary>
         public void CreateLoadDiscordThread()
         {
+            //Creation of thread and setting of thread variables
             Thread thread = new Thread(new ThreadStart(LoadDiscord));
             thread.Name = "Load Discord Thread";
             thread.Priority = ThreadPriority.AboveNormal;
 
+            //Aborting thread if one already exists
             if (DiscordLoadThread != null)
                 DiscordLoadThread.Abort();
 
@@ -232,12 +338,17 @@ namespace GhibliPlanner
             DiscordLoadThread.Start();
         }
 
+        /// <summary>
+        /// Creation of event saving thread and starts it.
+        /// </summary>
         public void CreateSaveEventThread()
         {
+            //Creation of thread and setting of thread variables
             Thread thread = new Thread(new ThreadStart(SaveEvent));
             thread.Name = "Save Event Thread";
             thread.Priority = ThreadPriority.Highest;
 
+            //Aborting thread if one already exists
             if (EventSaveThread != null)
                 EventSaveThread.Abort();
 
@@ -246,12 +357,17 @@ namespace GhibliPlanner
             EventSaveThread.Start();
         }
 
+        /// <summary>
+        /// Creation of event loading thread and starts it.
+        /// </summary>
         public void CreateLoadEventThread()
         {
+            //Creation of thread and setting of thread variables
             Thread thread = new Thread(new ThreadStart(LoadEvent));
             thread.Name = "Load Event Thread";
             thread.Priority = ThreadPriority.AboveNormal;
 
+            //Aborting thread if one already exists
             if (EventLoadThread != null)
                 EventLoadThread.Abort();
 
@@ -262,17 +378,22 @@ namespace GhibliPlanner
 
         #endregion
 
+
         #region Record Persistance
 
+        /// <summary>
+        /// Utilises Isolated storage to save the discord record runtime list and saves it to the records.txt file in the userData directory.
+        /// </summary>
         public void SaveDiscord()
         {
             try
             {
+                //Accesses the Isolated Storage File records.txt and opens up a stream to be utilised
                 using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, discordFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
                 {
-
+                    //Accquires lock on Discord Records and serializes the data into the isolated storage file steam and closes the stream, thus saving the data
                     BinaryFormatter formatter = new BinaryFormatter();
-                    if (Monitor.TryEnter(DiscordRecords))
+                    if (Monitor.TryEnter(DiscordRecords,3000))
                     {
                         formatter.Serialize(isoStream, DiscordRecords);
                         Monitor.Exit(DiscordRecords);
@@ -292,24 +413,35 @@ namespace GhibliPlanner
             }
         }
 
+        /// <summary>
+        /// Utilises Isolated storage to load the discord record to runtime list from the records.txt file in the userData directory.
+        /// </summary>
         public void LoadDiscord()
         {
             try
             {
+                //If the save thread is set and alive then the load thread is joined and waiting for it to complete saving
                 if(DiscordSaveThread != null)
                     if (DiscordSaveThread.IsAlive)
                     { DiscordSaveThread.Join(); }
 
+                //Accesses the Isolated Storage File records.txt and opens up a stream to be utilised
                 using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, discordFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
                 {
+
+                    //If the ISO stream is empty then just dont carry out the load logic
                     if (isoStream.Length > 0)
                     {
                         BinaryFormatter formatter = new BinaryFormatter();
-                        if (Monitor.TryEnter(DiscordRecords))
+                        if (Monitor.TryEnter(DiscordRecords,3000))
                         {
+                            //Clear the discord record list
                             DiscordRecords.Clear();
+
+                            //Adds discord records to list using AddRange as using "=" would release the lock on the object
                             DiscordRecords.AddRange((List<DiscordRecord>)formatter.Deserialize(isoStream));
 
+                            //Populates the discord list box
                             MainWindow.Instance.Dispatcher.Invoke(() =>
                             {
                                 MainWindow.Instance.LstBxDiscord.ItemsSource = DiscordRecords;
@@ -336,15 +468,20 @@ namespace GhibliPlanner
             }
         }
 
-
+        /// <summary>
+        /// Utilises Isolated storage to save the event record runtime list and saves it to the records.txt file in the userData directory.
+        /// </summary>
         public void SaveEvent()
         {
             try
             {
+
+                //Accesses the Isolated Storage File events.txt and opens up a stream to be utilised
                 using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, eventsFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
                 {
+                    //Accquires lock on events Records and serializes the data into the isolated storage file steam and closes the stream, thus saving the data
                     BinaryFormatter formatter = new BinaryFormatter();
-                    if (Monitor.TryEnter(EventRecords))
+                    if (Monitor.TryEnter(EventRecords,3000))
                     {
                         formatter.Serialize(isoStream, EventRecords);
                         Monitor.Exit(EventRecords);
@@ -360,24 +497,34 @@ namespace GhibliPlanner
             }
         }
 
+        /// <summary>
+        /// Utilises Isolated storage to load the event record to runtime list from the records.txt file in the userData directory.
+        /// </summary>
         public void LoadEvent()
         {
             try
             {
+                //If the save thread is set and alive then the load thread is joined and waiting for it to complete saving
                 if (EventSaveThread != null)
                     if (EventSaveThread.IsAlive)
                         EventSaveThread.Join();
 
+                //Accesses the Isolated Storage File events.txt and opens up a stream to be utilised
                 using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, eventsFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
                 {
+                    //If the ISO stream is empty then just dont carry out the load logic
                     if (isoStream.Length > 0)
                     {
                         BinaryFormatter formatter = new BinaryFormatter();
-                        if (Monitor.TryEnter(EventRecords))
+                        if (Monitor.TryEnter(EventRecords,3000))
                         {
+                            //Clear the event record list
                             EventRecords.Clear();
+
+                            //Adds event records to list using AddRange as using "=" would release the lock on the object
                             EventRecords.AddRange((List<EventRecord>)formatter.Deserialize(isoStream));
 
+                            //Populates the event list box
                             MainWindow.Instance.Dispatcher.Invoke(() =>
                             {
                                 MainWindow.Instance.LstBxEvents.ItemsSource = EventRecords;
@@ -408,15 +555,9 @@ namespace GhibliPlanner
 
         #endregion
 
-        public bool IsSetMovieActive()
-        {
-            if (SetMoviesThread != null)
-                return SetMoviesThread.IsAlive;
-            else
-                return false;
-        }
-
-        //Checks if get movie thread is alive
+        /// <summary>
+        /// Checks if get movie thread is alive
+        /// </summary>
         public bool IsGetMovieActive()
         {
             if (GetMoviesThread != null)
@@ -426,6 +567,9 @@ namespace GhibliPlanner
         }
     }
 
+    /// <summary>
+    /// Ghibli API Data Transfer Object
+    /// </summary>
     [Serializable]
     public class MovieFile
     {
