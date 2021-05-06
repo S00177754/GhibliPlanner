@@ -272,17 +272,20 @@ namespace GhibliPlanner
             {
                 using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, discordFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
                 {
+
                     BinaryFormatter formatter = new BinaryFormatter();
                     if (Monitor.TryEnter(DiscordRecords))
                     {
-                        formatter.Serialize(isoStream,DiscordRecords);
+                        formatter.Serialize(isoStream, DiscordRecords);
                         Monitor.Exit(DiscordRecords);
                     }
-
                     isoStream.Close();
+
+                    MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", Thread.CurrentThread.Name, " - Save Discord has retrieved records."));
+
+
                 }
 
-                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ",Thread.CurrentThread.Name, " - Save Discord has retrieved records."));
             }
             catch (Exception ex)
             {
@@ -299,20 +302,34 @@ namespace GhibliPlanner
                     if (DiscordSaveThread.IsAlive)
                     { DiscordSaveThread.Join(); }
 
-                using(IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, discordFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
+                using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, discordFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
                 {
-                    BinaryFormatter formatter = new BinaryFormatter();
-                    if (Monitor.TryEnter(DiscordRecords))
+                    if (isoStream.Length > 0)
                     {
-                        DiscordRecords.Clear();
-                        DiscordRecords.AddRange( (List<DiscordRecord>)formatter.Deserialize(isoStream) );
-                        Monitor.Exit(DiscordRecords);
-                    }
+                        BinaryFormatter formatter = new BinaryFormatter();
+                        if (Monitor.TryEnter(DiscordRecords))
+                        {
+                            DiscordRecords.Clear();
+                            DiscordRecords.AddRange((List<DiscordRecord>)formatter.Deserialize(isoStream));
 
-                    //isoStream.Close();
+                            MainWindow.Instance.Dispatcher.Invoke(() =>
+                            {
+                                MainWindow.Instance.LstBxDiscord.ItemsSource = DiscordRecords;
+                                MainWindow.Instance.LstBxDiscord.Items.Refresh();
+                            });
+
+                            Monitor.Exit(DiscordRecords);
+                        }
+                        isoStream.Close();
+
+                        MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", Thread.CurrentThread.Name, " - Load Discord has retrieved records."));
+                    }
+                    else
+                    {
+                        MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", Thread.CurrentThread.Name, " - Discord ISO stream is empty, cannot deserialize."));
+                    }
                 }
 
-                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ",Thread.CurrentThread.Name, " - Load Discord has retrieved records."));
             }
             catch(Exception ex)
             {
@@ -341,6 +358,7 @@ namespace GhibliPlanner
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message,"Exception Occured");
+                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", Thread.CurrentThread.Name, " - Save Event has been interrupted."));
             }
         }
 
@@ -354,20 +372,38 @@ namespace GhibliPlanner
 
                 using (IsolatedStorageFileStream isoStream = new IsolatedStorageFileStream(Path.Combine(userDataDir, eventsFileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, isoFile))
                 {
-                    BinaryFormatter formatter = new BinaryFormatter();
-                    if (Monitor.TryEnter(EventRecords))
+                    if (isoStream.Length > 0)
                     {
-                        EventRecords.Clear();
-                        EventRecords.AddRange( (List<EventRecord>)formatter.Deserialize(isoStream) );
-                        Monitor.Exit(EventRecords);
-                    }
+                        BinaryFormatter formatter = new BinaryFormatter();
+                        if (Monitor.TryEnter(EventRecords))
+                        {
+                            EventRecords.Clear();
+                            EventRecords.AddRange((List<EventRecord>)formatter.Deserialize(isoStream));
 
-                    //isoStream.Close();
+                            MainWindow.Instance.Dispatcher.Invoke(() =>
+                            {
+                                MainWindow.Instance.LstBxEvents.ItemsSource = EventRecords;
+                                MainWindow.Instance.LstBxEvents.Items.Refresh();
+                            });
+
+                            MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.UpdateEventStatus());
+                            Monitor.Exit(EventRecords);
+                        }
+
+                        isoStream.Close();
+                    }
+                    else
+                    {
+                        MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", Thread.CurrentThread.Name, " - Event ISO stream is empty, cannot deserialize."));
+                    }
                 }
+
+
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message,"Exception Occured");
+                MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", Thread.CurrentThread.Name, " - Load Event has been interrupted."));
             }
         }
 

@@ -21,7 +21,7 @@
 
         <TabControl Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0.2,-0.4,27" Grid.RowSpan="2" SelectionChanged="TabControl_SelectionChanged">
             <TabItem Header="Movie Info">
-                <Grid Background="#FFE5E5E5">
+                <Grid Background="LightGray">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="285*"/>
                         <RowDefinition Height="100*"/>
@@ -181,7 +181,7 @@
 
         </TabControl>
 
-        <StatusBar  Grid.Row="2" VerticalAlignment="Top" MinWidth="794"  Height="27" Background="#FFD0D0D0" Margin="0,0.2,-0.4,0" Grid.ColumnSpan="2">
+        <StatusBar  Grid.Row="2" VerticalAlignment="Top" MinWidth="794"  Height="27" Background="#FF2B4D90" Margin="0,0.2,-0.4,0" Grid.ColumnSpan="2">
             <StatusBar.ItemsPanel>
                 <ItemsPanelTemplate>
                     <Grid>
@@ -200,28 +200,28 @@
 
             <StatusBarItem HorizontalAlignment="Center">
                 <StackPanel Orientation="Horizontal" >
-                    <TextBlock Name="TxtBlkGhibliStatus" Text="Ghibli API Status: Connected" />
+                    <TextBlock Name="TxtBlkGhibliStatus" Text="Ghibli API Status: Connected" Foreground="White" />
                 </StackPanel>
             </StatusBarItem>
 
             <Separator Grid.Column="1" />
 
             <StatusBarItem Grid.Column="2" HorizontalAlignment="Left">
-                <TextBlock Name="TxtBlkEventStatus"  Text="Next Event:     Castle In The Sky - 18:30 - 17/03/21"/>
+                <TextBlock Name="TxtBlkEventStatus"  Text="Next Event:     Castle In The Sky - 18:30 - 17/03/21" Foreground="White"/>
             </StatusBarItem>
 
             <Separator Grid.Column="3" />
 
             <StatusBarItem Grid.Column="4" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <TextBlock Name="TxtBlkProgressMsg" Text="Downloading::" />
+                <TextBlock Name="TxtBlkProgressMsg" Text="Downloading::" Foreground="White" />
             </StatusBarItem>
 
             <StatusBarItem Grid.Column="5" VerticalAlignment="Center" >
-                <ProgressBar Name="PrgBrStatusBar" Width="90" Height="16"  Minimum="0" Maximum="1" Value="1" />
+                <ProgressBar Name="PrgBrStatusBar" Width="90" Height="16"  Minimum="0" Maximum="1" BorderBrush="{x:Null}" Background="#FF121532" />
             </StatusBarItem>
 
             <StatusBarItem Grid.Column="6" HorizontalAlignment="Left">
-                <Button Name="BtnCancelProgOperation" Content="X" Width="20" Click="BtnCancelProgOperation_Click" HorizontalAlignment="Right"/>
+                <Button Name="BtnCancelProgOperation" Content="X" Width="20" Click="BtnCancelProgOperation_Click" HorizontalAlignment="Right" Background="#FF17274C" Foreground="White" BorderBrush="{x:Null}"/>
             </StatusBarItem>
 
         </StatusBar>

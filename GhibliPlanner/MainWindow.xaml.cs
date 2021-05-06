@@ -36,15 +36,8 @@ namespace GhibliPlanner
 
             Core.RetrieveFilms(ref RetrieveFilmCancel);
 
-            if(Core.EventRecords.Count > 0)
-            {
-                EventRecord eventRec = Core.EventRecords.OrderBy(e => e.Date).ToList()[0];
-                TxtBlkEventStatus.Text = string.Concat("Next Event: ",eventRec.MovieTitle," - ", eventRec.Date.ToShortDateString());
-            }
-            else
-            {
-                TxtBlkEventStatus.Text = "Next Event: ";
-            }
+            Core.CreateLoadDiscordThread();
+            Core.CreateLoadEventThread();
         }
 
         //GENERAL UI EVENTS
@@ -130,6 +123,7 @@ namespace GhibliPlanner
         private void BtnLoadEventLists_Click(object sender, RoutedEventArgs e)
         {
             Core.CreateLoadEventThread();
+            
         }
 
 
@@ -167,7 +161,27 @@ namespace GhibliPlanner
         private void BtnLoadDiscordList_Click(object sender, RoutedEventArgs e)
         {
             Core.CreateLoadDiscordThread();
+            LstBxDiscord.Items.Refresh();
         }
 
+
+        //EXTRA FUNCTIONALITY
+        public void UpdateEventStatus()
+        {
+            if (Core.EventRecords.Count > 0)
+            {
+                EventRecord eventRec = Core.EventRecords.OrderBy(e => e.Date).ToList()[0];
+                TxtBlkEventStatus.Text = string.Concat("Next Event: ", eventRec.MovieTitle, " - ", eventRec.Date.ToShortDateString());
+            }
+            else
+            {
+                TxtBlkEventStatus.Text = "Next Event: ";
+            }
+        }
+
+        private void CmbBxDiscord_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
     }
 }
