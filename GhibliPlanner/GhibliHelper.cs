@@ -37,11 +37,9 @@ namespace GhibliPlanner
             {
                 MovieFile flm = JsonConvert.DeserializeObject<List<MovieFile>>(response)[0];
 
-                //MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">", Thread.CurrentThread.Name, " has successfully gotten film info.");
                 return flm;
             }
 
-            //MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">", Thread.CurrentThread.Name, " is unable to access GetFilms() because its busy.");
             
             return null;
 
@@ -53,16 +51,7 @@ namespace GhibliPlanner
             client.Headers.Add(HttpRequestHeader.ContentType, "application/json");
 
             string response = client.DownloadString(string.Concat(CreateURL()));
-
-            //if (!string.IsNullOrEmpty(response))
-            //{
-            //    List<MovieFile> lst = JsonConvert.DeserializeObject<List<MovieFile>>(response);
-
-            //    //MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">", Thread.CurrentThread.Name, " has successfully gotten film info.");
-            //    return lst;
-            //}
-
-            //MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat(">",Thread.CurrentThread.Name," is unable to access GetFilms() because its busy.");
+            
             return response;
         }
 

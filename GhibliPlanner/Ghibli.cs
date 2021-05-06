@@ -36,7 +36,7 @@ namespace GhibliPlanner
 
         public Ghibli()
         {
-            //isoFile = IsolatedStorageFile.GetStore(IsolatedStorageScope.User,typeof(System.Security.Policy.Url),typeof(System.Security.Policy.Url));
+
             isoFile = IsolatedStorageFile.GetUserStoreForAssembly();
 
             if(!isoFile.DirectoryExists(userDataDir))
@@ -54,8 +54,6 @@ namespace GhibliPlanner
                 isoFile.CreateFile(Path.Combine(userDataDir, eventsFileName));
             }
 
-            //LoadDiscord();
-            //LoadEvent();
         }
 
         #region Discord Records
@@ -191,7 +189,7 @@ namespace GhibliPlanner
             SetMoviesThread.Start(new SetMovieRequest(GhibliHelper.GetFilms(),tokenSource.Token));
         }
 
-        public void GetFilm(string movieName)
+        public void CreateGetFilm(string movieName)
         {
             Thread thread = new Thread(new ParameterizedThreadStart(GetMovie));
             thread.Name = "Get Movie Thread";
@@ -418,6 +416,7 @@ namespace GhibliPlanner
                 return false;
         }
 
+        //Checks if get movie thread is alive
         public bool IsGetMovieActive()
         {
             if (GetMoviesThread != null)
