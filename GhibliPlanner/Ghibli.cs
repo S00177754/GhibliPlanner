@@ -488,6 +488,7 @@ namespace GhibliPlanner
                     }
 
                     isoStream.Close();
+                    MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", Thread.CurrentThread.Name, " - Save Event completed successfully."));
                 }
             }
             catch (Exception ex)
@@ -536,6 +537,7 @@ namespace GhibliPlanner
                         }
 
                         isoStream.Close();
+                        MainWindow.Instance.Dispatcher.Invoke(() => MainWindow.Instance.TxtBlkThreadInfo.Text = string.Concat("> ", Thread.CurrentThread.Name, " - Event loading has completed successfully."));
                     }
                     else
                     {
